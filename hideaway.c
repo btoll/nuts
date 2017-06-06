@@ -1,3 +1,4 @@
+// TODO: Right now it's assuming that it needs to encrypt when closing.
 //
 // create_fs() -> mount_fs()
 //
@@ -91,6 +92,56 @@ void create_fs(char *filename, char *mntpoint) {
     }
 }
 
+void decrypt(char *filename, char *outfile) {
+    pid_t pid;
+
+    // `outfile` is a buffer that will be filled with the name of the outfile.
+    get_basename(filename, outfile);
+
+    if ((pid = fork()) == 0) {
+        execl("/usr/bin/gpg", "gpg", "-o", outfile, "-d", filename, NULL);
+        _exit(0);
+    } else if (pid == -1) {
+        perror("gpg");
+        exit(4);
+    } else {
+        wait(NULL);
+        printf("Decrypted to %s\n", outfile);
+    }
+}
+
+/**
+ * Sign and encrypt.
+ * Note that recipients should be given on the cli after prompting (that's GPG itself, not this program).
+ */
+void encrypt(char *filename) {
+    pid_t pid;
+
+    if ((pid = fork()) == 0) {
+        execl("/usr/bin/gpg", "gpg", "-se", filename, NULL);
+        _exit(0);
+    } else if (pid == -1) {
+        perror("gpg");
+        exit(5);
+    } else {
+        wait(NULL);
+        printf("Signed and encrypted.\n");
+    }
+}
+
+// Copy the filename (less its extension) into `buf`.
+void get_basename(char *filename, char *buf) {
+    // Find pointer to file extension and copy all chars except it.
+    char *c = strrchr(filename, '.');
+    int i;
+
+    for (i = 0; filename[i] != *c; ++i)
+        ;
+
+    strncpy(buf, filename, i);
+    buf[i] = '\0';
+}
+
 //
 // lsmod | grep loop &> /dev/null;
 // if [ $? -gt 0 ]; then
@@ -109,17 +160,17 @@ void mount_fs(char *filename, char *mntpoint) {
         _exit(0);
     } else if (pid == -1) {
         perror("modprobe");
-        exit(4);
+        exit(6);
     } else {
         wait(NULL);
-        printf("Mounting...\n");
+        printf("Mounting to %s/\n", mntpoint);
 
         if ((r = mkdir(mntpoint, 0700)) == -1) {
             // 17 == "File exists", which *should* be ok :)
             if (errno != 17) {
                 perror("mkdir");
                 fprintf(stderr, "%d\n", errno);
-                exit(5);
+                exit(7);
             }
         }
 
@@ -128,7 +179,7 @@ void mount_fs(char *filename, char *mntpoint) {
             _exit(0);
         } else if (pid == -1) {
             perror("mount");
-            exit(6);
+            exit(8);
         } else {
             wait(NULL);
             printf("Done!\n");
@@ -136,26 +187,73 @@ void mount_fs(char *filename, char *mntpoint) {
     }
 }
 
-// TODO: Maybe remove this.
+// TODO: Maybe remove this or inline.
 void strip_newline(char *buf, char swap) {
     buf[strcspn(buf, "\n")] = swap;
 }
 
+void umount_fs(char *mntpoint) {
+    pid_t pid;
+    int r;
+
+    if ((pid = fork()) == 0) {
+        execl("/usr/bin/sudo", "sudo", "umount", mntpoint, NULL);
+        _exit(0);
+    } else if (pid == -1) {
+        perror("umount");
+        exit(9);
+    } else {
+        wait(NULL);
+        printf("Unmounted.\n");
+
+        if ((r = rmdir(mntpoint)) == -1) {
+            perror("rmdir");
+            exit(10);
+        } else
+            printf("Done!\n");
+    }
+}
+
+/**
+ * Commands are "open" or "close".
+ */
 int main(int argc, char **argv) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <filename> <mntpoint> [filesize (1GB, 500MB, ...)]\n", argv[0]);
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s <command> <filename> <mntpoint>\n", argv[0]);
         return 1;
     }
 
-    char *filename = argv[1];
-    char *mntpoint = argv[2];
+    char *cmd = argv[1];
+    char *filename = argv[2];
+    char *mntpoint = argv[3];
 
     struct stat file_stat;
 
-    if ((stat(filename, &file_stat)) == -1)
-        create_fs(filename, mntpoint);
-    else
-        mount_fs(filename, mntpoint);
+    // Get file extension, if exists, and check if gpg.
+    char *c;
+
+    if (strcmp(cmd, "open") == 0) {
+        if ((c = strrchr(filename, '.')) != NULL) {
+            if (strncmp(c, ".gpg", 4) == 0) {
+                char buf[1024];
+
+                decrypt(filename, buf);
+                filename = buf;
+            }
+        }
+
+        // TODO: Automatically skip creating if file already exists?
+        if ((stat(filename, &file_stat)) == -1)
+            create_fs(filename, mntpoint);
+        else
+            mount_fs(filename, mntpoint);
+    } else if (strcmp(cmd, "close") == 0) {
+        encrypt(filename);
+        umount_fs(mntpoint);
+    } else {
+        fprintf(stderr, "[%s] Unrecognized command\n", argv[0]);
+        exit(11);
+    }
 
     return 0;
 }
