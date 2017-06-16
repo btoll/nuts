@@ -1,6 +1,14 @@
-// TODO: Right now it's assuming that it needs to encrypt when closing.
 //
 // create_fs() -> mount_fs()
+//
+// Dependencies:
+//      fallocate
+//      gpg
+//      mkfs.*
+//      modprobe
+//      mount
+//      sudo
+//      umount
 //
 
 #include <stdio.h>
@@ -90,9 +98,6 @@ void create_fs(char *filename) {
 void decrypt(char *filename, char *outfile) {
     pid_t pid;
 
-    // `outfile` is a buffer that will be filled with the name of the outfile.
-//     get_basename(filename, outfile);
-
     if ((pid = fork()) == 0) {
         execl("/usr/bin/gpg", "gpg", "-o", outfile, "-d", filename, NULL);
         _exit(0);
@@ -102,6 +107,25 @@ void decrypt(char *filename, char *outfile) {
     } else {
         wait(NULL);
         printf("Decrypting to %s\n", outfile);
+    }
+}
+
+// Pass a file pointer.
+void doOperation(void (f)(char *, char *), char *filename, char *outfile, char *opName) {
+    char buf[MIN_SIZE];
+    char r;
+
+    printf("%s? [Y/n] ", opName);
+    fgets(buf, sizeof(buf) - 1, stdin);
+    sscanf(buf, "%c", &r);
+
+    if (r == 'Y' || r == 'y' || r == '\n') {
+        char buf[MAX_SIZE];
+
+        printf("Name of outfile: ");
+        fgets(buf, sizeof(buf) - 1, stdin);
+        sscanf(buf, "%s", outfile);
+        (*f)(filename, outfile);
     }
 }
 
@@ -184,25 +208,6 @@ void umount_fs(char *mntpoint) {
     }
 }
 
-void foo(void (f)(char *, char *), char *filename, char *outfile, char *operation) {
-    char buf[MIN_SIZE];
-    char r;
-
-    printf("%s? [Y/n] ", operation);
-    fgets(buf, sizeof(buf) - 1, stdin);
-    sscanf(buf, "%c", &r);
-
-    if (r == 'Y' || r == 'y' || r == '\n') {
-        char buf[MAX_SIZE];
-//         char outfile[MAX_SIZE];
-
-        printf("Name of outfile: ");
-        fgets(buf, sizeof(buf) - 1, stdin);
-        sscanf(buf, "%s", outfile);
-        (*f)(filename, outfile);
-    }
-}
-
 /**
  * Commands are "open" or "close".
  */
@@ -216,29 +221,14 @@ int main(int argc, char **argv) {
     char *filename = argv[2];
     char *mntpoint = argv[3];
     char outfile[MAX_SIZE];
-    void (*f)(char *, char *);
+    void (*fptr)(char *, char *);
 
+    memset(outfile, 0, MAX_SIZE);
     if (strcmp(cmd, "open") == 0) {
-//         char buf[MIN_SIZE], outfile[MAX_SIZE], r;
         struct stat file_stat;
 
-//         printf("Decrypt? [Y/n] ");
-//         fgets(buf, sizeof(buf) - 1, stdin);
-//         sscanf(buf, "%c", &r);
-// 
-//         if (r == 'Y' || r == 'y' || r == '\n') {
-//             char buf[MAX_SIZE];
-// 
-//             printf("Name of outfile: ");
-//             fgets(buf, sizeof(buf) - 1, stdin);
-//             sscanf(buf, "%s", outfile);
-// 
-//             decrypt(filename, outfile);
-//             filename = outfile;
-//         }
-
-        f = &decrypt;
-        foo(f, filename, outfile, "Decrypt");
+        fptr = &decrypt;
+        doOperation(fptr, filename, outfile, "Decrypt");
 
         if (outfile[0] != '\0')
             filename = outfile;
@@ -250,24 +240,8 @@ int main(int argc, char **argv) {
         } else
             mount_fs(filename, mntpoint);
     } else if (strcmp(cmd, "close") == 0) {
-//         char buf[MIN_SIZE];
-//         char r;
-// 
-//         printf("Encrypt? [Y/n] ");
-//         fgets(buf, sizeof(buf) - 1, stdin);
-//         sscanf(buf, "%c", &r);
-// 
-//         if (r == 'Y' || r == 'y' || r == '\n') {
-//             char buf[MAX_SIZE];
-//             char outfile[MAX_SIZE];
-// 
-//             printf("Name of outfile: ");
-//             fgets(buf, sizeof(buf) - 1, stdin);
-//             sscanf(buf, "%s", outfile);
-//             encrypt(filename, outfile);
-//         }
-        f = &encrypt;
-        foo(f, filename, outfile, "Encrypt");
+        fptr = &encrypt;
+        doOperation(fptr, filename, outfile, "Encrypt");
 
         umount_fs(mntpoint);
     } else {
