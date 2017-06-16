@@ -184,6 +184,25 @@ void umount_fs(char *mntpoint) {
     }
 }
 
+void foo(void (f)(char *, char *), char *filename, char *outfile, char *operation) {
+    char buf[MIN_SIZE];
+    char r;
+
+    printf("%s? [Y/n] ", operation);
+    fgets(buf, sizeof(buf) - 1, stdin);
+    sscanf(buf, "%c", &r);
+
+    if (r == 'Y' || r == 'y' || r == '\n') {
+        char buf[MAX_SIZE];
+//         char outfile[MAX_SIZE];
+
+        printf("Name of outfile: ");
+        fgets(buf, sizeof(buf) - 1, stdin);
+        sscanf(buf, "%s", outfile);
+        (*f)(filename, outfile);
+    }
+}
+
 /**
  * Commands are "open" or "close".
  */
@@ -196,25 +215,33 @@ int main(int argc, char **argv) {
     char *cmd = argv[1];
     char *filename = argv[2];
     char *mntpoint = argv[3];
+    char outfile[MAX_SIZE];
+    void (*f)(char *, char *);
 
     if (strcmp(cmd, "open") == 0) {
-        char buf[MIN_SIZE], outfile[MAX_SIZE], r;
+//         char buf[MIN_SIZE], outfile[MAX_SIZE], r;
         struct stat file_stat;
 
-        printf("Decrypt? [Y/n] ");
-        fgets(buf, sizeof(buf) - 1, stdin);
-        sscanf(buf, "%c", &r);
+//         printf("Decrypt? [Y/n] ");
+//         fgets(buf, sizeof(buf) - 1, stdin);
+//         sscanf(buf, "%c", &r);
+// 
+//         if (r == 'Y' || r == 'y' || r == '\n') {
+//             char buf[MAX_SIZE];
+// 
+//             printf("Name of outfile: ");
+//             fgets(buf, sizeof(buf) - 1, stdin);
+//             sscanf(buf, "%s", outfile);
+// 
+//             decrypt(filename, outfile);
+//             filename = outfile;
+//         }
 
-        if (r == 'Y' || r == 'y' || r == '\n') {
-            char buf[MAX_SIZE];
+        f = &decrypt;
+        foo(f, filename, outfile, "Decrypt");
 
-            printf("Name of outfile: ");
-            fgets(buf, sizeof(buf) - 1, stdin);
-            sscanf(buf, "%s", outfile);
-
-            decrypt(filename, outfile);
+        if (outfile[0] != '\0')
             filename = outfile;
-        }
 
         // Don't create if file already exists.
         if ((stat(filename, &file_stat)) == -1) {
@@ -223,22 +250,24 @@ int main(int argc, char **argv) {
         } else
             mount_fs(filename, mntpoint);
     } else if (strcmp(cmd, "close") == 0) {
-        char buf[MIN_SIZE];
-        char r;
-
-        printf("Encrypt? [Y/n] ");
-        fgets(buf, sizeof(buf) - 1, stdin);
-        sscanf(buf, "%c", &r);
-
-        if (r == 'Y' || r == 'y' || r == '\n') {
-            char buf[MAX_SIZE];
-            char outfile[MAX_SIZE];
-
-            printf("Name of outfile: ");
-            fgets(buf, sizeof(buf) - 1, stdin);
-            sscanf(buf, "%s", outfile);
-            encrypt(filename, outfile);
-        }
+//         char buf[MIN_SIZE];
+//         char r;
+// 
+//         printf("Encrypt? [Y/n] ");
+//         fgets(buf, sizeof(buf) - 1, stdin);
+//         sscanf(buf, "%c", &r);
+// 
+//         if (r == 'Y' || r == 'y' || r == '\n') {
+//             char buf[MAX_SIZE];
+//             char outfile[MAX_SIZE];
+// 
+//             printf("Name of outfile: ");
+//             fgets(buf, sizeof(buf) - 1, stdin);
+//             sscanf(buf, "%s", outfile);
+//             encrypt(filename, outfile);
+//         }
+        f = &encrypt;
+        foo(f, filename, outfile, "Encrypt");
 
         umount_fs(mntpoint);
     } else {
