@@ -40,7 +40,7 @@ void create_fs(char *filename) {
         if (!strlen(fsize))
             fsize = "1GB";
 
-        execl("/usr/bin/fallocate", "fallocate", "-l", fsize, filename, NULL);
+        execlp("fallocate", "fallocate", "-l", fsize, filename, NULL);
         free(fsize);
 
         _exit(0);
@@ -99,7 +99,7 @@ void decrypt(char *filename, char *outfile) {
     pid_t pid;
 
     if ((pid = fork()) == 0) {
-        execl("/usr/bin/gpg", "gpg", "-o", outfile, "-d", filename, NULL);
+        execlp("gpg", "gpg", "-o", outfile, "-d", filename, NULL);
         _exit(0);
     } else if (pid == -1) {
         perror("gpg");
@@ -137,7 +137,7 @@ void encrypt(char *filename, char *outfile) {
     pid_t pid;
 
     if ((pid = fork()) == 0) {
-        execl("/usr/bin/gpg", "gpg", "-o", outfile, "-se", filename, NULL);
+        execlp("gpg", "gpg", "-o", outfile, "-se", filename, NULL);
         _exit(0);
     } else if (pid == -1) {
         perror("gpg");
@@ -153,7 +153,7 @@ void mount_fs(char *filename, char *mntpoint) {
     int r;
 
     if ((pid = fork()) == 0) {
-        execl("/sbin/modprobe", "modprobe", "loop", NULL);
+        execlp("modprobe", "modprobe", "loop", NULL);
         _exit(0);
     } else if (pid == -1) {
         perror("modprobe");
@@ -173,7 +173,7 @@ void mount_fs(char *filename, char *mntpoint) {
         }
 
         if ((pid = fork()) == 0) {
-            execl("/usr/bin/sudo", "sudo", "mount", "-o", "loop", filename, mntpoint, NULL);
+            execlp("sudo", "sudo", "mount", "-o", "loop", filename, mntpoint, NULL);
             _exit(0);
         } else if (pid == -1) {
             perror("mount");
@@ -192,7 +192,7 @@ void umount_fs(char *mntpoint) {
     printf("Unmounting %s/\n", mntpoint);
 
     if ((pid = fork()) == 0) {
-        execl("/usr/bin/sudo", "sudo", "umount", mntpoint, NULL);
+        execlp("sudo", "sudo", "umount", mntpoint, NULL);
         _exit(0);
     } else if (pid == -1) {
         perror("umount");
@@ -208,6 +208,18 @@ void umount_fs(char *mntpoint) {
     }
 }
 
+/*
+int check_deps() {
+//      fallocate
+//      gpg
+//      mkfs.*
+//      modprobe
+//      mount
+//      sudo
+//      umount
+}
+*/
+
 /**
  * Commands are "open" or "close".
  */
@@ -216,6 +228,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Usage: %s <command> <filename> <mntpoint>\n", argv[0]);
         return 1;
     }
+
+//     check_deps();
 
     char *cmd = argv[1];
     char *filename = argv[2];
