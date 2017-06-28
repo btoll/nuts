@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
-#include "hideaway.h"
+#include "nuts.h"
 
 void create_fs(char *filename) {
     pid_t pid;

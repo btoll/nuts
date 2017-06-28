@@ -1,13 +1,13 @@
 CC      = gcc
 WARN    = -W -Wall
 
-.PHONY: all hideaway
+.PHONY: all nuts
 
-all: hideaway
+all: nuts
 
-hideaway: hideaway.o
-	$(CC) $(WARN) -o hideaway hideaway.c
+nuts: nuts.o
+	$(CC) $(WARN) -o nuts nuts.c
 
 clean:
-	rm hideaway *.o
+	rm nuts *.o
 
