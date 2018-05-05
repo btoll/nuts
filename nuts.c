@@ -33,12 +33,12 @@ void create_fs(char *filename) {
             exit(1);
         }
 
-        printf("\nSize of file [1GB]: ");
+        printf("\nSize of file [250MB]: ");
         fgets(buf, MIN_SIZE, stdin);
         sscanf(buf, "%s", fsize);
 
         if (!strlen(fsize))
-            fsize = "1GB";
+            fsize = "250MB";
 
         execlp("fallocate", "fallocate", "-l", fsize, filename, NULL);
         free(fsize);
@@ -84,7 +84,7 @@ void create_fs(char *filename) {
 
             strncat(bin, fs_type, strlen(fs_type));
 
-            // ex. execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
+            // example -> execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
             execl(bin, fs_type, filename, NULL);
             _exit(0);
         } else if (pid == -1) {
@@ -107,25 +107,6 @@ void decrypt(char *filename, char *outfile) {
     } else {
         wait(NULL);
         printf("Decrypting to %s\n", outfile);
-    }
-}
-
-// Pass a file pointer.
-void doOperation(void (f)(char *, char *), char *filename, char *outfile, char *opName) {
-    char buf[MIN_SIZE];
-    char r;
-
-    printf("%s? [Y/n] ", opName);
-    fgets(buf, sizeof(buf) - 1, stdin);
-    sscanf(buf, "%c", &r);
-
-    if (r == 'Y' || r == 'y' || r == '\n') {
-        char buf[MAX_SIZE];
-
-        printf("Name of outfile: ");
-        fgets(buf, sizeof(buf) - 1, stdin);
-        sscanf(buf, "%s", outfile);
-        (*f)(filename, outfile);
     }
 }
 
@@ -185,6 +166,25 @@ void mount_fs(char *filename, char *mntpoint) {
     }
 }
 
+// Pass a file pointer.
+void doOperation(void (f)(char *, char *), char *filename, char *outfile, char *opName) {
+    char buf[MIN_SIZE];
+    char r;
+
+    printf("%s? [Y/n] ", opName);
+    fgets(buf, sizeof(buf) - 1, stdin);
+    sscanf(buf, "%c", &r);
+
+    if (r == 'Y' || r == 'y' || r == '\n') {
+        char buf[MAX_SIZE];
+
+        printf("Name of outfile: ");
+        fgets(buf, sizeof(buf) - 1, stdin);
+        sscanf(buf, "%s", outfile);
+        (*f)(filename, outfile);
+    }
+}
+
 void umount_fs(char *mntpoint) {
     pid_t pid;
     int r;
@@ -208,55 +208,41 @@ void umount_fs(char *mntpoint) {
     }
 }
 
-/*
-int check_deps() {
-//      fallocate
-//      gpg
-//      mkfs.*
-//      modprobe
-//      mount
-//      sudo
-//      umount
+void usage(char *proc) {
+    fprintf(stderr, "Usage: %s <command> <filename> <mntpoint>\n", proc);
 }
-*/
 
 /**
  * Commands are "open" or "close".
  */
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s <command> <filename> <mntpoint>\n", argv[0]);
+        usage(argv[0]);
         return 1;
     }
-
-//     check_deps();
 
     char *cmd = argv[1];
     char *filename = argv[2];
     char *mntpoint = argv[3];
     char outfile[MAX_SIZE];
-    void (*fptr)(char *, char *);
+//    void (*fptr)(char *, char *);
 
     memset(outfile, 0, MAX_SIZE);
     if (strcmp(cmd, "open") == 0) {
         struct stat file_stat;
 
-        fptr = &decrypt;
-        doOperation(fptr, filename, outfile, "Decrypt");
+        doOperation(&decrypt, filename, outfile, "Decrypt");
 
         if (outfile[0] != '\0')
             filename = outfile;
 
         // Don't create if file already exists.
-        if ((stat(filename, &file_stat)) == -1) {
+        if ((stat(filename, &file_stat)) == -1)
             create_fs(filename);
-            mount_fs(filename, mntpoint);
-        } else
-            mount_fs(filename, mntpoint);
-    } else if (strcmp(cmd, "close") == 0) {
-        fptr = &encrypt;
-        doOperation(fptr, filename, outfile, "Encrypt");
 
+        mount_fs(filename, mntpoint);
+    } else if (strcmp(cmd, "close") == 0) {
+        doOperation(&encrypt, filename, outfile, "Encrypt");
         umount_fs(mntpoint);
     } else {
         fprintf(stderr, "[%s] Unrecognized command\n", argv[0]);

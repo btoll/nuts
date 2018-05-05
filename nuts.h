@@ -4,6 +4,7 @@ void doOperation(void (f)(char *, char *), char *filename, char *outfile, char *
 void encrypt(char *filename, char *outfile);
 void mount_fs(char *filename, char *mntpoint);
 void umount_fs(char *mntpoint);
+void usage(char *proc);
 
 #define MAX_SIZE 1024
 #define MIN_SIZE 20

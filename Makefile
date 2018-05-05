@@ -1,13 +1,14 @@
 CC      = gcc
-WARN    = -W -Wall
+FLAGS	= -W -Wall
+OUT		= nuts
 
-.PHONY: all nuts
+.PHONY: all
 
-all: nuts
+all: $(OUT)
 
-nuts: nuts.o
-	$(CC) $(WARN) -o nuts nuts.c
+$(OUT): $(OUT).o
+	$(CC) $(FLAGS) -o $(OUT) $(OUT).c
 
 clean:
-	rm nuts *.o
+	rm -f $(OUT) *.o
 
