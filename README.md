@@ -4,6 +4,8 @@
 
 -- attributed to [Kilgore Trout][1]
 
+This little program assumes that there is already a GPG/PGP encrypted filesystem on disk when opening.
+
 ## License
 
 [GPLv3](COPYING)

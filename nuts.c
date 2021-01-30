@@ -21,8 +21,18 @@
 #include <errno.h>
 #include "nuts.h"
 
-void create_fs(char *filename) {
+int create_fs(char *filename) {
+    char buf[MAX_SIZE];
+    char r;
     pid_t pid;
+
+    printf("[WARN] There is no filename `%s`... Create? [Y/n]: ", filename);
+    fgets(buf, sizeof(buf) - 1, stdin);
+    sscanf(buf, "%c", &r);
+
+    if (r == 'n') {
+        return 1;
+    }
 
     if ((pid = fork()) == 0) {
         char buf[MIN_SIZE];
@@ -40,12 +50,17 @@ void create_fs(char *filename) {
         if (!strlen(fsize))
             fsize = "250MB";
 
-        execlp("fallocate", "fallocate", "-l", fsize, filename, NULL);
+        if ((r = execlp("fallocate", "fallocate", "-l", fsize, filename, NULL)) == -1) {
+            perror("fallocate operation");
+            free(fsize);
+            return 1;
+        }
+
         free(fsize);
 
         _exit(0);
     } else if (pid == -1) {
-        perror("fallocate");
+        perror("fallocate: could not fork");
         exit(2);
     } else {
         wait(NULL);
@@ -85,59 +100,106 @@ void create_fs(char *filename) {
             strncat(bin, fs_type, strlen(fs_type));
 
             // example -> execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
-            execl(bin, fs_type, filename, NULL);
+            if ((r = execl(bin, fs_type, filename, NULL)) == -1) {
+                perror("mkfs.ext3 operation");
+            }
+
             _exit(0);
         } else if (pid == -1) {
-            perror("mkfs.ext3");
+            perror("mkfs.ext3: could not fork");
             exit(3);
         } else
             wait(NULL);
     }
+
+    return 0;
 }
 
-void decrypt(char *filename, char *outfile) {
+int decrypt(char *filename, char *outfile) {
     pid_t pid;
+    int r;
 
     if ((pid = fork()) == 0) {
-        execlp("gpg", "gpg", "-o", outfile, "-d", filename, NULL);
-        _exit(0);
+        if ((r = execlp("gpg", "gpg", "-o", outfile, "-d", filename, NULL)) == -1) {
+            perror("gpg decrypt operation");
+            _exit(127);
+        } else _exit(0);
     } else if (pid == -1) {
-        perror("gpg");
+        perror("gpg decrypt: could not fork");
         exit(4);
+        return 1;
     } else {
         wait(NULL);
         printf("Decrypting to %s\n", outfile);
     }
+
+    return 0;
+}
+
+// Pass a file pointer.
+//int doOperation(int (f)(char *, char *), char *filename, char *outfile, char *opName) {
+int doOperation(char *fname, char *filename, char *outfile, char *opName) {
+    char buf[MIN_SIZE];
+    char r;
+
+    printf("%s? [Y/n] ", opName);
+    fgets(buf, sizeof(buf) - 1, stdin);
+    sscanf(buf, "%c", &r);
+
+    if (r == 'Y' || r == 'y' || r == '\n') {
+        char buf[MAX_SIZE];
+
+        printf("Name of outfile: ");
+        fgets(buf, sizeof(buf) - 1, stdin);
+        sscanf(buf, "%s", outfile);
+
+        if (fname == "encrypt")
+            r = encrypt(filename, outfile);
+        else
+            r = decrypt(filename, outfile);
+    }
+
+    return 0;
 }
 
 /**
  * Sign and encrypt.
  * Note that recipients should be given on the cli after prompting (that's GPG itself, not this program).
  */
-void encrypt(char *filename, char *outfile) {
+int encrypt(char *filename, char *outfile) {
     pid_t pid;
+    int r;
 
     if ((pid = fork()) == 0) {
-        execlp("gpg", "gpg", "-o", outfile, "-se", filename, NULL);
-        _exit(0);
+        if ((r = execlp("gpg", "gpg", "-o", outfile, "-se", filename, NULL)) == -1) {
+            perror("gpg encrypt operation");
+            _exit(127);
+        } else _exit(0);
     } else if (pid == -1) {
-        perror("gpg");
+        perror("gpg encrypt: could not fork");
+        return 1;
         exit(5);
     } else {
         wait(NULL);
         printf("Signing and encrypting %s\n", outfile);
     }
+
+    return 0;
 }
 
-void mount_fs(char *filename, char *mntpoint) {
+int mount_fs(char *filename, char *mntpoint) {
     pid_t pid;
     int r;
 
     if ((pid = fork()) == 0) {
-        execlp("modprobe", "modprobe", "loop", NULL);
+        if ((r = execlp("modprobe", "modprobe", "loop", NULL)) == -1) {
+            perror("modprobe operation");
+            return 1;
+        }
         _exit(0);
     } else if (pid == -1) {
-        perror("modprobe");
+        perror("mount_fs: could not fork");
+        return 1;
         exit(6);
     } else {
         wait(NULL);
@@ -154,35 +216,23 @@ void mount_fs(char *filename, char *mntpoint) {
         }
 
         if ((pid = fork()) == 0) {
-            execlp("sudo", "sudo", "mount", "-o", "loop", filename, mntpoint, NULL);
+            if ((r = execlp("sudo", "sudo", "mount", "-o", "loop", filename, mntpoint, NULL)) == -1) {
+                perror("mount operation");
+                return 1;
+            }
+
             _exit(0);
         } else if (pid == -1) {
-            perror("mount");
+            perror("mount: could not fork");
+            return 1;
             exit(8);
         } else {
             wait(NULL);
             printf("Done!\n");
         }
     }
-}
 
-// Pass a file pointer.
-void doOperation(void (f)(char *, char *), char *filename, char *outfile, char *opName) {
-    char buf[MIN_SIZE];
-    char r;
-
-    printf("%s? [Y/n] ", opName);
-    fgets(buf, sizeof(buf) - 1, stdin);
-    sscanf(buf, "%c", &r);
-
-    if (r == 'Y' || r == 'y' || r == '\n') {
-        char buf[MAX_SIZE];
-
-        printf("Name of outfile: ");
-        fgets(buf, sizeof(buf) - 1, stdin);
-        sscanf(buf, "%s", outfile);
-        (*f)(filename, outfile);
-    }
+    return 0;
 }
 
 void umount_fs(char *mntpoint) {
@@ -192,10 +242,13 @@ void umount_fs(char *mntpoint) {
     printf("Unmounting %s/\n", mntpoint);
 
     if ((pid = fork()) == 0) {
-        execlp("sudo", "sudo", "umount", mntpoint, NULL);
+        if ((r = execlp("sudo", "sudo", "umount", mntpoint, NULL)) == -1) {
+            perror("umount operation");
+        }
+
         _exit(0);
     } else if (pid == -1) {
-        perror("umount");
+        perror("umount: could not fork");
         exit(9);
     } else {
         wait(NULL);
@@ -203,8 +256,7 @@ void umount_fs(char *mntpoint) {
         if ((r = rmdir(mntpoint)) == -1) {
             perror("rmdir");
             exit(10);
-        } else
-            printf("Done!\n");
+        } else printf("Done!\n");
     }
 }
 
@@ -231,18 +283,22 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "open") == 0) {
         struct stat file_stat;
 
-        doOperation(&decrypt, filename, outfile, "Decrypt");
+        // Only create new filesystem if nothing is found by that name.
+        if ((stat(filename, &file_stat)) == -1) {
+            if (create_fs(filename)) {
+                fprintf(stderr, "Aborting!\n");
+                return 1;
+            }
+//        } else (doOperation(&decrypt, filename, outfile, "Decrypt"));
+        } else (doOperation("decrypt", filename, outfile, "Decrypt"));
 
         if (outfile[0] != '\0')
             filename = outfile;
 
-        // Don't create if file already exists.
-        if ((stat(filename, &file_stat)) == -1)
-            create_fs(filename);
-
         mount_fs(filename, mntpoint);
     } else if (strcmp(cmd, "close") == 0) {
-        doOperation(&encrypt, filename, outfile, "Encrypt");
+//        doOperation(&encrypt, filename, outfile, "Encrypt");
+        doOperation("encrypt", filename, outfile, "Encrypt");
         umount_fs(mntpoint);
     } else {
         fprintf(stderr, "[%s] Unrecognized command\n", argv[0]);
