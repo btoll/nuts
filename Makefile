@@ -1,6 +1,6 @@
-CC      = gcc
-FLAGS	= -W -Wall
-OUT		= nuts
+CC    = gcc
+FLAGS = -W -Wall
+OUT   = nuts
 
 .PHONY: build
 
