@@ -86,7 +86,7 @@ int create_fs(char *filename) {
                 "\nSelect: "
             ;
 
-            printf(fs);
+            printf("%s", fs);
             scanf("%d%*c", &d);
 
             if (d > 4) {
@@ -153,7 +153,7 @@ int doOperation(char *fname, char *filename, char *outfile, char *opName) {
         fgets(buf, sizeof(buf) - 1, stdin);
         sscanf(buf, "%s", outfile);
 
-        if (fname == "encrypt")
+        if (strncmp(fname, "encrypt", strlen(fname)) == 0)
             r = encrypt(filename, outfile);
         else
             r = decrypt(filename, outfile);
