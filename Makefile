@@ -2,9 +2,9 @@ CC      = gcc
 FLAGS	= -W -Wall
 OUT		= nuts
 
-.PHONY: all
+.PHONY: build
 
-all: $(OUT)
+build: $(OUT)
 
 $(OUT): $(OUT).o
 	$(CC) $(FLAGS) -o $(OUT) $(OUT).c
