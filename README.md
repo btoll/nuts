@@ -4,6 +4,13 @@
 
 -- attributed to [Kilgore Trout]
 
+`nuts` can create any of the following filesystems:
+
+- ext2
+- ext3
+- ext4
+- fat
+
 ---
 
 ## Build
