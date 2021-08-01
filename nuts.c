@@ -66,8 +66,8 @@ int create_fs(char *filename) {
         wait(NULL);
 
         if ((pid = fork()) == 0) {
-            char bin[MIN_SIZE] = "/sbin/";
-            char *fs_type;
+            char bindir[MIN_SIZE] = "/sbin/";
+            char *binname;
             int d;
 
             char *list[6] = {
@@ -97,12 +97,12 @@ int create_fs(char *filename) {
             }
 
             // Zero-based.
-            fs_type = list[d - 1];
+            binname = list[d - 1];
 
-            strncat(bin, fs_type, strlen(fs_type));
+            strncat(bindir, binname, strlen(binname));
 
             // example -> execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
-            if ((r = execl(bin, fs_type, filename, NULL)) == -1) {
+            if ((r = execl(bindir, binname, filename, NULL)) == -1) {
                 perror("mkfs operation");
             }
 
