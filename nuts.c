@@ -70,7 +70,8 @@ int create_fs(char *filename) {
             char *fs_type;
             int d;
 
-            char *list[5] = {
+            char *list[6] = {
+                "mkfs.btrfs",
                 "mkfs.ext2",
                 "mkfs.ext3",
                 "mkfs.ext4",
@@ -79,19 +80,20 @@ int create_fs(char *filename) {
 
             char fs[] =
                 "Select the filesystem type:\n\n"
-                "\t1. ext2\n"
-                "\t2. ext3\n"
-                "\t3. ext4\n"
-                "\t4. fat\n"
+                "\t1. btrfs\n"
+                "\t2. ext2\n"
+                "\t3. ext3\n"
+                "\t4. ext4\n"
+                "\t5. fat\n"
                 "\nSelect: "
             ;
 
             printf("%s", fs);
             scanf("%d%*c", &d);
 
-            if (d > 4) {
-                printf("Choice out of range, defaulting to ext3.\n");
-                d = 2;
+            if (d > 5) {
+                printf("Choice out of range, defaulting to btrfs.\n");
+                d = 1;
             }
 
             // Zero-based.
@@ -101,12 +103,12 @@ int create_fs(char *filename) {
 
             // example -> execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
             if ((r = execl(bin, fs_type, filename, NULL)) == -1) {
-                perror("mkfs.ext3 operation");
+                perror("mkfs operation");
             }
 
             _exit(0);
         } else if (pid == -1) {
-            perror("mkfs.ext3: could not fork");
+            perror("mkfs: could not fork");
             exit(3);
         } else
             wait(NULL);

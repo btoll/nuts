@@ -6,6 +6,7 @@
 
 `nuts` can create any of the following filesystems:
 
+- btrfs
 - ext2
 - ext3
 - ext4
