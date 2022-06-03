@@ -66,12 +66,11 @@ int create_fs(char *filename) {
         wait(NULL);
 
         if ((pid = fork()) == 0) {
-            char bindir[MIN_SIZE] = "/sbin/";
-            char *binname;
+            char bin[MIN_SIZE] = "/sbin/";
+            char *fs_type;
             int d;
 
-            char *list[6] = {
-                "mkfs.btrfs",
+            char *list[5] = {
                 "mkfs.ext2",
                 "mkfs.ext3",
                 "mkfs.ext4",
@@ -80,35 +79,34 @@ int create_fs(char *filename) {
 
             char fs[] =
                 "Select the filesystem type:\n\n"
-                "\t1. btrfs\n"
-                "\t2. ext2\n"
-                "\t3. ext3\n"
-                "\t4. ext4\n"
-                "\t5. fat\n"
+                "\t1. ext2\n"
+                "\t2. ext3\n"
+                "\t3. ext4\n"
+                "\t4. fat\n"
                 "\nSelect: "
             ;
 
-            printf("%s", fs);
+            printf(fs);
             scanf("%d%*c", &d);
 
-            if (d > 5) {
-                printf("Choice out of range, defaulting to btrfs.\n");
-                d = 1;
+            if (d > 4) {
+                printf("Choice out of range, defaulting to ext3.\n");
+                d = 2;
             }
 
             // Zero-based.
-            binname = list[d - 1];
+            fs_type = list[d - 1];
 
-            strncat(bindir, binname, strlen(binname));
+            strncat(bin, fs_type, strlen(fs_type));
 
             // example -> execl("/sbin/mkfs.ext3", "mkfs.ext3", ...);
-            if ((r = execl(bindir, binname, filename, NULL)) == -1) {
-                perror("mkfs operation");
+            if ((r = execl(bin, fs_type, filename, NULL)) == -1) {
+                perror("mkfs.ext3 operation");
             }
 
             _exit(0);
         } else if (pid == -1) {
-            perror("mkfs: could not fork");
+            perror("mkfs.ext3: could not fork");
             exit(3);
         } else
             wait(NULL);
@@ -139,8 +137,8 @@ int decrypt(char *filename, char *outfile) {
 }
 
 // Pass a file pointer.
-//int do_operation(int (f)(char *, char *), char *filename, char *outfile, char *opName) {
-int do_operation(char *fname, char *filename, char *outfile, char *opName) {
+//int doOperation(int (f)(char *, char *), char *filename, char *outfile, char *opName) {
+int doOperation(char *fname, char *filename, char *outfile, char *opName) {
     char buf[MIN_SIZE];
     char r;
 
@@ -155,7 +153,7 @@ int do_operation(char *fname, char *filename, char *outfile, char *opName) {
         fgets(buf, sizeof(buf) - 1, stdin);
         sscanf(buf, "%s", outfile);
 
-        if (strncmp(fname, "encrypt", strlen(fname)) == 0)
+        if (fname == "encrypt")
             r = encrypt(filename, outfile);
         else
             r = decrypt(filename, outfile);
@@ -291,16 +289,16 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Aborting!\n");
                 return 1;
             }
-//        } else (do_operation(&decrypt, filename, outfile, "Decrypt"));
-        } else (do_operation("decrypt", filename, outfile, "Decrypt"));
+//        } else (doOperation(&decrypt, filename, outfile, "Decrypt"));
+        } else (doOperation("decrypt", filename, outfile, "Decrypt"));
 
         if (outfile[0] != '\0')
             filename = outfile;
 
         mount_fs(filename, mntpoint);
     } else if (strcmp(cmd, "close") == 0) {
-//        do_operation(&encrypt, filename, outfile, "Encrypt");
-        do_operation("encrypt", filename, outfile, "Encrypt");
+//        doOperation(&encrypt, filename, outfile, "Encrypt");
+        doOperation("encrypt", filename, outfile, "Encrypt");
         umount_fs(mntpoint);
     } else {
         fprintf(stderr, "[%s] Unrecognized command\n", argv[0]);
