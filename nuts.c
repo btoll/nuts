@@ -137,12 +137,12 @@ int decrypt(char *filename, char *outfile) {
 }
 
 // Pass a file pointer.
-//int doOperation(int (f)(char *, char *), char *filename, char *outfile, char *opName) {
-int doOperation(char *fname, char *filename, char *outfile, char *opName) {
+//int do_operation(int (f)(char *, char *), char *filename, char *outfile, char *op_name) {
+int do_operation(char *fname, char *filename, char *outfile, char *op_name) {
     char buf[MIN_SIZE];
     char r;
 
-    printf("%s? [Y/n] ", opName);
+    printf("%s? [Y/n] ", op_name);
     fgets(buf, sizeof(buf) - 1, stdin);
     sscanf(buf, "%c", &r);
 
@@ -289,16 +289,16 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Aborting!\n");
                 return 1;
             }
-//        } else (doOperation(&decrypt, filename, outfile, "Decrypt"));
-        } else (doOperation("decrypt", filename, outfile, "Decrypt"));
+//        } else (do_operation(&decrypt, filename, outfile, "Decrypt"));
+        } else (do_operation("decrypt", filename, outfile, "Decrypt"));
 
         if (outfile[0] != '\0')
             filename = outfile;
 
         mount_fs(filename, mntpoint);
     } else if (strcmp(cmd, "close") == 0) {
-//        doOperation(&encrypt, filename, outfile, "Encrypt");
-        doOperation("encrypt", filename, outfile, "Encrypt");
+//        do_operation(&encrypt, filename, outfile, "Encrypt");
+        do_operation("encrypt", filename, outfile, "Encrypt");
         umount_fs(mntpoint);
     } else {
         fprintf(stderr, "[%s] Unrecognized command\n", argv[0]);
